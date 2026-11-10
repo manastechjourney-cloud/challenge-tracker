@@ -48,7 +48,8 @@ function renderChallenges(challenges) {
     const item = document.createElement("li");
 
     const info = document.createElement("div");
-    const title = document.createElement("strong");
+    const title = document.createElement("a");
+    title.href = `/static/challenge.html?id=${challenge.id}`;
     title.textContent = challenge.name;
 
     const mode = challenge.strict_mode ? "strict" : "relaxed";

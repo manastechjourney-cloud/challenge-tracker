@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Challenge</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main>
+    <p><a href="/">&larr; All challenges</a></p>
+    <h1 id="challenge-name">Loading...</h1>
+    <p id="challenge-info"></p>
+    <p id="page-message"></p>
+
+    <section>
+      <h2>Progress</h2>
+      <progress id="progress-bar" max="100" value="0"></progress>
+      <p id="progress-text"></p>
+      <div class="stats">
+        <div class="stat">
+          <span class="number" id="stat-streak">0</span>
+          <span class="label">Current streak</span>
+        </div>
+        <div class="stat">
+          <span class="number" id="stat-completed">0</span>
+          <span class="label">Days done</span>
+        </div>
+        <div class="stat">
+          <span class="number" id="stat-left">0</span>
+          <span class="label">Days left</span>
+        </div>
+        <div class="stat">
+          <span class="number" id="stat-slipped">0</span>
+          <span class="label">Slips</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Today</h2>
+      <p id="today-status"></p>
+      <label>
+        Note (optional)
+        <textarea id="note" rows="2" maxlength="500"></textarea>
+      </label>
+      <div class="buttons">
+        <button type="button" id="done-button">Done</button>
+        <button type="button" id="slipped-button" class="danger">Slipped</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>History</h2>
+      <ul id="history-list"></ul>
+    </section>
+  </main>
+
+  <script src="/static/challenge.js"></script>
+</body>
+</html>
