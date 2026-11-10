@@ -1,4 +1,7 @@
+import datetime
+
 from fastapi import Depends, FastAPI, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import models
@@ -45,3 +48,63 @@ def delete_challenge(challenge_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Challenge not found")
     db.delete(challenge)
     db.commit()
+
+
+@app.post(
+    "/challenges/{challenge_id}/checkins",
+    response_model=schemas.CheckInRead,
+    status_code=201,
+)
+def create_checkin(
+    challenge_id: int,
+    checkin: schemas.CheckInCreate,
+    db: Session = Depends(get_db),
+):
+    challenge = db.get(models.Challenge, challenge_id)
+    if challenge is None:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+
+    checkin_date = checkin.date or datetime.date.today()
+    last_day = challenge.start_date + datetime.timedelta(
+        days=challenge.duration_days - 1
+    )
+    if checkin_date < challenge.start_date or checkin_date > last_day:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Date must be between {challenge.start_date} and {last_day}",
+        )
+
+    db_checkin = models.CheckIn(
+        challenge_id=challenge_id,
+        date=checkin_date,
+        status=checkin.status,
+        note=checkin.note,
+    )
+    db.add(db_checkin)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="A check-in already exists for this date",
+        )
+    db.refresh(db_checkin)
+    return db_checkin
+
+
+@app.get(
+    "/challenges/{challenge_id}/checkins",
+    response_model=list[schemas.CheckInRead],
+)
+def list_checkins(challenge_id: int, db: Session = Depends(get_db)):
+    challenge = db.get(models.Challenge, challenge_id)
+    if challenge is None:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+    return (
+        db.query(models.CheckIn)
+        .filter(models.CheckIn.challenge_id == challenge_id)
+        .order_by(models.CheckIn.date)
+        .all()
+    )
+
