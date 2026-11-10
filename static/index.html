@@ -15,6 +15,39 @@
       <p id="status-message"></p>
       <ul id="challenge-list"></ul>
     </section>
+
+    <section>
+      <h2>New challenge</h2>
+      <form id="challenge-form">
+        <label>
+          Name
+          <input type="text" id="name" required maxlength="100" placeholder="30 days no sugar">
+        </label>
+
+        <label>
+          Description (optional)
+          <textarea id="description" rows="2"></textarea>
+        </label>
+
+        <label>
+          Duration (days)
+          <input type="number" id="duration" min="1" max="3650" value="30" required>
+        </label>
+
+        <label>
+          Start date
+          <input type="date" id="start-date" required>
+        </label>
+
+        <label class="checkbox">
+          <input type="checkbox" id="strict" checked>
+          Strict mode (a slip resets the streak)
+        </label>
+
+        <button type="submit">Create challenge</button>
+        <p id="form-message"></p>
+      </form>
+    </section>
   </main>
 
   <script src="/static/app.js"></script>
