@@ -1,21 +1,27 @@
 import datetime
 
+from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from progress import calculate_progress
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 import models
 import schemas
 from database import Base, engine, get_db
 
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+BASE_DIR = Path(__file__).resolve().parent
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 
-@app.get("/")
-def read_root():
-    return {"message": "Hello, Challenge Tracker!"}
+@app.get("/", include_in_schema=False)
+def serve_index():
+    return FileResponse(BASE_DIR / "static" / "index.html")
 
 
 @app.post("/challenges", response_model=schemas.ChallengeRead, status_code=201)
