@@ -3,7 +3,7 @@ import datetime
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-
+from progress import calculate_progress
 import models
 import schemas
 from database import Base, engine, get_db
@@ -73,7 +73,11 @@ def create_checkin(
             status_code=400,
             detail=f"Date must be between {challenge.start_date} and {last_day}",
         )
-
+    if checkin_date > datetime.date.today():
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot check in for a future date",
+        )
     db_checkin = models.CheckIn(
         challenge_id=challenge_id,
         date=checkin_date,
@@ -108,3 +112,22 @@ def list_checkins(challenge_id: int, db: Session = Depends(get_db)):
         .all()
     )
 
+
+@app.get(
+    "/challenges/{challenge_id}/progress",
+    response_model=schemas.ProgressRead,
+)
+def get_progress(challenge_id: int, db: Session = Depends(get_db)):
+    challenge = db.get(models.Challenge, challenge_id)
+    if challenge is None:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+
+    statuses = {checkin.date: checkin.status for checkin in challenge.checkins}
+
+    return calculate_progress(
+        start_date=challenge.start_date,
+        duration_days=challenge.duration_days,
+        strict_mode=challenge.strict_mode,
+        statuses=statuses,
+        today=datetime.date.today(),
+    )

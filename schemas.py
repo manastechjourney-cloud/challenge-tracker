@@ -32,3 +32,14 @@ class CheckInRead(BaseModel):
     date: datetime.date
     status: str
     note: str | None
+
+
+class ProgressRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    days_completed: int
+    days_slipped: int
+    days_elapsed: int
+    days_left: int
+    completion_percent: float
+    current_streak: int
