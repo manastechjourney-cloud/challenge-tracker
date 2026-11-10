@@ -1,0 +1,125 @@
+import datetime
+
+TODAY = datetime.date.today()
+ONE_DAY = datetime.timedelta(days=1)
+
+
+def make_challenge(client, **overrides):
+    payload = {
+        "name": "Test challenge",
+        "description": "",
+        "duration_days": 30,
+        "start_date": (TODAY - 2 * ONE_DAY).isoformat(),
+        "strict_mode": True,
+    }
+    payload.update(overrides)
+    return client.post("/challenges", json=payload)
+
+
+def add_checkin(client, challenge_id, day, status="done"):
+    return client.post(
+        f"/challenges/{challenge_id}/checkins",
+        json={"status": status, "date": day.isoformat()},
+    )
+
+
+def test_create_challenge(client):
+    response = make_challenge(client, name="30 days no sugar")
+    assert response.status_code == 201
+    body = response.json()
+    assert body["id"] == 1
+    assert body["name"] == "30 days no sugar"
+
+
+def test_create_challenge_rejects_zero_duration(client):
+    response = make_challenge(client, duration_days=0)
+    assert response.status_code == 422
+
+
+def test_list_challenges(client):
+    make_challenge(client, name="One")
+    make_challenge(client, name="Two")
+    response = client.get("/challenges")
+    assert response.status_code == 200
+    names = [c["name"] for c in response.json()]
+    assert names == ["One", "Two"]
+
+
+def test_get_missing_challenge_returns_404(client):
+    response = client.get("/challenges/999")
+    assert response.status_code == 404
+
+
+def test_delete_challenge(client):
+    challenge_id = make_challenge(client).json()["id"]
+    assert client.delete(f"/challenges/{challenge_id}").status_code == 204
+    assert client.get(f"/challenges/{challenge_id}").status_code == 404
+
+
+def test_create_checkin(client):
+    challenge_id = make_challenge(client).json()["id"]
+    response = add_checkin(client, challenge_id, TODAY - ONE_DAY)
+    assert response.status_code == 201
+    assert response.json()["status"] == "done"
+
+
+def test_duplicate_checkin_returns_409(client):
+    challenge_id = make_challenge(client).json()["id"]
+    add_checkin(client, challenge_id, TODAY - ONE_DAY)
+    response = add_checkin(client, challenge_id, TODAY - ONE_DAY)
+    assert response.status_code == 409
+
+
+def test_checkin_before_start_returns_400(client):
+    challenge_id = make_challenge(client).json()["id"]
+    response = add_checkin(client, challenge_id, TODAY - 3 * ONE_DAY)
+    assert response.status_code == 400
+    assert "between" in response.json()["detail"]
+
+
+def test_checkin_in_future_returns_400(client):
+    challenge_id = make_challenge(client).json()["id"]
+    response = add_checkin(client, challenge_id, TODAY + ONE_DAY)
+    assert response.status_code == 400
+    assert "future" in response.json()["detail"]
+
+
+def test_invalid_status_returns_422(client):
+    challenge_id = make_challenge(client).json()["id"]
+    response = add_checkin(client, challenge_id, TODAY, status="skipped")
+    assert response.status_code == 422
+
+
+def test_progress_endpoint_counts_checkins(client):
+    challenge_id = make_challenge(client).json()["id"]
+    add_checkin(client, challenge_id, TODAY - 2 * ONE_DAY)
+    add_checkin(client, challenge_id, TODAY - ONE_DAY)
+    response = client.get(f"/challenges/{challenge_id}/progress")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["days_completed"] == 2
+    assert body["days_elapsed"] == 3
+    assert body["days_left"] == 27
+    assert body["completion_percent"] == 6.7
+    assert body["current_streak"] == 2
+
+
+def test_strict_slip_today_resets_streak(client):
+    challenge_id = make_challenge(client, strict_mode=True).json()["id"]
+    add_checkin(client, challenge_id, TODAY - ONE_DAY)
+    add_checkin(client, challenge_id, TODAY, status="slipped")
+    body = client.get(f"/challenges/{challenge_id}/progress").json()
+    assert body["current_streak"] == 0
+
+
+def test_relaxed_slip_today_keeps_streak(client):
+    challenge_id = make_challenge(client, strict_mode=False).json()["id"]
+    add_checkin(client, challenge_id, TODAY - ONE_DAY)
+    add_checkin(client, challenge_id, TODAY, status="slipped")
+    body = client.get(f"/challenges/{challenge_id}/progress").json()
+    assert body["current_streak"] == 1
+
+
+def test_progress_for_missing_challenge_returns_404(client):
+    response = client.get("/challenges/999/progress")
+    assert response.status_code == 404
