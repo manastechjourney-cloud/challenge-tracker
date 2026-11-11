@@ -4,22 +4,6 @@ const form = document.getElementById("challenge-form");
 const formMessage = document.getElementById("form-message");
 const startDateInput = document.getElementById("start-date");
 
-function todayString() {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${now.getFullYear()}-${month}-${day}`;
-}
-
-function describeError(detail) {
-  if (typeof detail === "string") {
-    return detail;
-  }
-  if (Array.isArray(detail)) {
-    return detail.map((problem) => problem.msg).join("; ");
-  }
-  return "Unknown error";
-}
 
 async function loadChallenges() {
   messageElement.textContent = "Loading...";
