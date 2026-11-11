@@ -18,10 +18,13 @@ class ChallengeRead(ChallengeCreate):
     id: int
 
 
-class CheckInCreate(BaseModel):
+class CheckInUpdate(BaseModel):
     status: Literal["done", "slipped"]
-    date: datetime.date | None = None
     note: str | None = Field(default=None, max_length=500)
+
+
+class CheckInCreate(CheckInUpdate):
+    date: datetime.date | None = None
 
 
 class CheckInRead(BaseModel):

@@ -137,3 +137,44 @@ def get_progress(challenge_id: int, db: Session = Depends(get_db)):
         statuses=statuses,
         today=datetime.date.today(),
     )
+
+
+def get_checkin_or_404(
+    db: Session, challenge_id: int, checkin_id: int
+) -> models.CheckIn:
+    checkin = db.get(models.CheckIn, checkin_id)
+    if checkin is None or checkin.challenge_id != challenge_id:
+        raise HTTPException(status_code=404, detail="Check-in not found")
+    return checkin
+
+
+@app.put(
+    "/challenges/{challenge_id}/checkins/{checkin_id}",
+    response_model=schemas.CheckInRead,
+)
+def update_checkin(
+    challenge_id: int,
+    checkin_id: int,
+    update: schemas.CheckInUpdate,
+    db: Session = Depends(get_db),
+):
+    checkin = get_checkin_or_404(db, challenge_id, checkin_id)
+    checkin.status = update.status
+    checkin.note = update.note
+    db.commit()
+    db.refresh(checkin)
+    return checkin
+
+
+@app.delete(
+    "/challenges/{challenge_id}/checkins/{checkin_id}",
+    status_code=204,
+)
+def delete_checkin(
+    challenge_id: int,
+    checkin_id: int,
+    db: Session = Depends(get_db),
+):
+    checkin = get_checkin_or_404(db, challenge_id, checkin_id)
+    db.delete(checkin)
+    db.commit()
