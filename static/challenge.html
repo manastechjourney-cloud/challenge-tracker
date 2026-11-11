@@ -3,37 +3,49 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#070b1a">
   <title>Challenge</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔥</text></svg>">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <main>
-    <p><a href="/">&larr; All challenges</a></p>
-    <h1 id="challenge-name">Loading...</h1>
-    <p id="challenge-info"></p>
+  <header class="app-header">
+    <div class="container">
+      <a class="back-link" href="/">&larr; All challenges</a>
+      <h1 id="challenge-name" class="page-title">Loading...</h1>
+      <p id="challenge-info" class="subtitle"></p>
+    </div>
+  </header>
+
+  <main class="container">
     <p id="page-message"></p>
 
     <section>
       <h2>Progress</h2>
-      <progress id="progress-bar" max="100" value="0"></progress>
-      <p id="progress-text"></p>
+      <div class="hero">
+        <div class="ring-wrap">
+          <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+            <defs>
+              <linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#8b5cf6"/>
+                <stop offset="100%" stop-color="#22d3ee"/>
+              </linearGradient>
+            </defs>
+            <circle class="ring-track" cx="60" cy="60" r="52"/>
+            <circle class="ring-fill" id="ring-fill" cx="60" cy="60" r="52" stroke="url(#ring-grad)"/>
+          </svg>
+          <div class="ring-label"><span id="ring-percent">0%</span><small>complete</small></div>
+        </div>
+        <div class="flame-box">
+          <div class="flame-slot"><div class="flame cold" id="flame">🔥</div></div>
+          <div class="flame-number" id="stat-streak">0</div>
+          <div class="label">day streak</div>
+        </div>
+      </div>
       <div class="stats">
-        <div class="stat">
-          <span class="number" id="stat-streak">0</span>
-          <span class="label">Current streak</span>
-        </div>
-        <div class="stat">
-          <span class="number" id="stat-completed">0</span>
-          <span class="label">Days done</span>
-        </div>
-        <div class="stat">
-          <span class="number" id="stat-left">0</span>
-          <span class="label">Days left</span>
-        </div>
-        <div class="stat">
-          <span class="number" id="stat-slipped">0</span>
-          <span class="label">Slips</span>
-        </div>
+        <div class="stat"><span class="number" id="stat-completed">0</span><span class="label">Days done</span></div>
+        <div class="stat"><span class="number" id="stat-left">0</span><span class="label">Days left</span></div>
+        <div class="stat"><span class="number" id="stat-slipped">0</span><span class="label">Slips</span></div>
       </div>
     </section>
 

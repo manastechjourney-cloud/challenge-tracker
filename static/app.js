@@ -4,22 +4,20 @@ const form = document.getElementById("challenge-form");
 const formMessage = document.getElementById("form-message");
 const startDateInput = document.getElementById("start-date");
 
-
 async function loadChallenges() {
   messageElement.textContent = "Loading...";
   try {
-    const response = await fetch("/challenges");
-    if (!response.ok) {
-      throw new Error("Server replied " + response.status);
-    }
-    const challenges = await response.json();
-    renderChallenges(challenges);
+    const challenges = await getJson("/challenges");
+    const progresses = await Promise.all(
+      challenges.map((challenge) => getJson(`/challenges/${challenge.id}/progress`))
+    );
+    renderChallenges(challenges, progresses);
   } catch (error) {
     messageElement.textContent = "Could not load challenges: " + error.message;
   }
 }
 
-function renderChallenges(challenges) {
+function renderChallenges(challenges, progresses) {
   listElement.replaceChildren();
 
   if (challenges.length === 0) {
@@ -28,19 +26,33 @@ function renderChallenges(challenges) {
   }
   messageElement.textContent = "";
 
-  for (const challenge of challenges) {
+  challenges.forEach((challenge, index) => {
+    const progress = progresses[index];
     const item = document.createElement("li");
 
-    const info = document.createElement("div");
+    const body = document.createElement("div");
+    body.className = "card-body";
+
     const title = document.createElement("a");
     title.href = `/static/challenge.html?id=${challenge.id}`;
     title.textContent = challenge.name;
 
     const mode = challenge.strict_mode ? "strict" : "relaxed";
-    const details = document.createElement("span");
-    details.textContent =
-      ` · ${challenge.duration_days} days · starts ${challenge.start_date} · ${mode}`;
-    info.append(title, details);
+    const meta = document.createElement("span");
+    meta.className = "meta";
+    meta.textContent = `${challenge.duration_days} days · starts ${challenge.start_date} · ${mode}`;
+
+    const bar = document.createElement("div");
+    bar.className = "mini-bar";
+    const fill = document.createElement("div");
+    fill.className = "mini-fill";
+    bar.appendChild(fill);
+
+    const stats = document.createElement("span");
+    stats.className = "meta";
+    stats.textContent = `${progress.completion_percent}% complete · 🔥 ${progress.current_streak} day streak`;
+
+    body.append(title, meta, bar, stats);
 
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
@@ -48,9 +60,13 @@ function renderChallenges(challenges) {
     deleteButton.textContent = "Delete";
     deleteButton.addEventListener("click", () => deleteChallenge(challenge));
 
-    item.append(info, deleteButton);
+    item.append(body, deleteButton);
     listElement.appendChild(item);
-  }
+
+    setTimeout(() => {
+      fill.style.width = progress.completion_percent + "%";
+    }, 50);
+  });
 }
 
 async function deleteChallenge(challenge) {

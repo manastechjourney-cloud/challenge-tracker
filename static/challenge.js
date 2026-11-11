@@ -1,62 +1,36 @@
-const params = new URLSearchParams(window.location.search);
-const challengeId = params.get("id");
+const challengeId = new URLSearchParams(window.location.search).get("id");
+const RING_LENGTH = 326.73;
 
-const nameElement = document.getElementById("challenge-name");
-const infoElement = document.getElementById("challenge-info");
-const pageMessage = document.getElementById("page-message");
-const progressBar = document.getElementById("progress-bar");
-const progressText = document.getElementById("progress-text");
-const streakElement = document.getElementById("stat-streak");
-const completedElement = document.getElementById("stat-completed");
-const leftElement = document.getElementById("stat-left");
-const slippedStatElement = document.getElementById("stat-slipped");
-const todayStatus = document.getElementById("today-status");
-const noteInput = document.getElementById("note");
-const doneButton = document.getElementById("done-button");
-const slippedButton = document.getElementById("slipped-button");
-const historyList = document.getElementById("history-list");
-
-function todayString() {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${now.getFullYear()}-${month}-${day}`;
-}
-
-function describeError(detail) {
-  if (typeof detail === "string") {
-    return detail;
-  }
-  if (Array.isArray(detail)) {
-    return detail.map((problem) => problem.msg).join("; ");
-  }
-  return "Unknown error";
-}
-
-async function getJson(url) {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error("Server replied " + response.status);
-  }
-  return response.json();
-}
+const byId = (id) => document.getElementById(id);
+const pageMessage = byId("page-message");
+const noteInput = byId("note");
+const doneButton = byId("done-button");
+const slippedButton = byId("slipped-button");
+const ringFill = byId("ring-fill");
+const flame = byId("flame");
+const historyList = byId("history-list");
 
 function renderChallenge(challenge) {
-  nameElement.textContent = challenge.name;
+  byId("challenge-name").textContent = challenge.name;
   document.title = challenge.name;
   const mode = challenge.strict_mode ? "Strict mode" : "Relaxed mode";
   const description = challenge.description ? challenge.description + " · " : "";
-  infoElement.textContent =
+  byId("challenge-info").textContent =
     `${description}${challenge.duration_days} days from ${challenge.start_date} · ${mode}`;
 }
 
 function renderProgress(progress) {
-  progressBar.value = progress.completion_percent;
-  progressText.textContent = `${progress.completion_percent}% complete`;
-  streakElement.textContent = progress.current_streak;
-  completedElement.textContent = progress.days_completed;
-  leftElement.textContent = progress.days_left;
-  slippedStatElement.textContent = progress.days_slipped;
+  const percent = progress.completion_percent;
+  ringFill.style.strokeDashoffset = RING_LENGTH * (1 - percent / 100);
+  byId("ring-percent").textContent = `${percent}%`;
+  byId("stat-streak").textContent = progress.current_streak;
+  byId("stat-completed").textContent = progress.days_completed;
+  byId("stat-left").textContent = progress.days_left;
+  byId("stat-slipped").textContent = progress.days_slipped;
+
+  const scale = 1 + Math.min(progress.current_streak, 30) / 40;
+  flame.style.setProperty("--scale", scale);
+  flame.classList.toggle("cold", progress.current_streak === 0);
 }
 
 function renderToday(checkins) {
@@ -67,7 +41,7 @@ function renderToday(checkins) {
   slippedButton.disabled = hasCheckedIn;
   noteInput.disabled = hasCheckedIn;
 
-  todayStatus.textContent = hasCheckedIn
+  byId("today-status").textContent = hasCheckedIn
     ? `You already checked in today: ${todays.status}.`
     : "You haven't checked in today yet.";
 }
@@ -98,6 +72,53 @@ function renderHistory(checkins) {
     item.appendChild(info);
     historyList.appendChild(item);
   }
+}
+
+function launchConfetti() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.className = "confetti";
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext("2d");
+
+  const colors = ["#8b5cf6", "#22d3ee", "#34d399", "#fbbf24", "#fb7185"];
+  const pieces = Array.from({ length: 120 }, () => ({
+    x: canvas.width / 2,
+    y: canvas.height * 0.6,
+    vx: (Math.random() - 0.5) * 16,
+    vy: -Math.random() * 16 - 4,
+    size: Math.random() * 8 + 4,
+    spin: Math.random() * 6,
+    color: colors[Math.floor(Math.random() * colors.length)],
+  }));
+
+  let frames = 0;
+  function tick() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const p of pieces) {
+      p.vy += 0.35;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.spin += 0.2;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.spin);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+      ctx.restore();
+    }
+    frames += 1;
+    if (frames < 140) {
+      requestAnimationFrame(tick);
+    } else {
+      canvas.remove();
+    }
+  }
+  tick();
 }
 
 async function loadPage() {
@@ -139,6 +160,9 @@ async function submitCheckin(status) {
       throw new Error(describeError(error.detail));
     }
     noteInput.value = "";
+    if (status === "done") {
+      launchConfetti();
+    }
     await loadPage();
   } catch (error) {
     pageMessage.textContent = "Could not save check-in: " + error.message;
