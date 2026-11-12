@@ -185,3 +185,82 @@ def test_checkin_of_another_challenge_returns_404(client):
     response = client.delete(f"/challenges/{second}/checkins/{checkin_id}")
     assert response.status_code == 404
     assert len(client.get(f"/challenges/{first}/checkins").json()) == 1
+
+
+def test_patch_changes_only_sent_fields(client):
+    challenge_id = make_challenge(client, name="Old", description="keep me").json()["id"]
+    response = client.patch(f"/challenges/{challenge_id}", json={"name": "New"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["name"] == "New"
+    assert body["description"] == "keep me"
+    assert body["duration_days"] == 30
+
+
+def test_patch_can_switch_to_relaxed_mode(client):
+    challenge_id = make_challenge(client, strict_mode=True).json()["id"]
+    response = client.patch(f"/challenges/{challenge_id}", json={"strict_mode": False})
+    assert response.status_code == 200
+    assert response.json()["strict_mode"] is False
+
+
+def test_patch_mode_switch_changes_streak(client):
+    challenge_id = make_challenge(client, strict_mode=True).json()["id"]
+    add_checkin(client, challenge_id, TODAY - 2 * ONE_DAY)
+    add_checkin(client, challenge_id, TODAY - ONE_DAY, status="slipped")
+    add_checkin(client, challenge_id, TODAY)
+    progress_url = f"/challenges/{challenge_id}/progress"
+    assert client.get(progress_url).json()["current_streak"] == 1
+    client.patch(f"/challenges/{challenge_id}", json={"strict_mode": False})
+    assert client.get(progress_url).json()["current_streak"] == 2
+
+
+def test_patch_missing_challenge_returns_404(client):
+    response = client.patch("/challenges/999", json={"name": "Nope"})
+    assert response.status_code == 404
+
+
+def test_patch_rejects_invalid_values(client):
+    challenge_id = make_challenge(client).json()["id"]
+    url = f"/challenges/{challenge_id}"
+    assert client.patch(url, json={"duration_days": 0}).status_code == 422
+    assert client.patch(url, json={"name": ""}).status_code == 422
+
+
+def test_patch_rejects_null_for_a_field(client):
+    challenge_id = make_challenge(client).json()["id"]
+    response = client.patch(f"/challenges/{challenge_id}", json={"name": None})
+    assert response.status_code == 422
+
+
+def test_patch_shortening_below_existing_checkin_returns_400(client):
+    challenge_id = make_challenge(client).json()["id"]
+    add_checkin(client, challenge_id, TODAY - ONE_DAY)
+    response = client.patch(f"/challenges/{challenge_id}", json={"duration_days": 1})
+    assert response.status_code == 400
+
+
+def test_patch_moving_start_after_checkin_returns_400(client):
+    challenge_id = make_challenge(client).json()["id"]
+    add_checkin(client, challenge_id, TODAY - 2 * ONE_DAY)
+    response = client.patch(
+        f"/challenges/{challenge_id}",
+        json={"start_date": (TODAY - ONE_DAY).isoformat()},
+    )
+    assert response.status_code == 400
+
+
+def test_patch_extending_duration_is_allowed(client):
+    challenge_id = make_challenge(client).json()["id"]
+    add_checkin(client, challenge_id, TODAY - ONE_DAY)
+    response = client.patch(f"/challenges/{challenge_id}", json={"duration_days": 60})
+    assert response.status_code == 200
+    progress = client.get(f"/challenges/{challenge_id}/progress").json()
+    assert progress["days_left"] == 57
+
+
+def test_patch_with_empty_body_changes_nothing(client):
+    challenge_id = make_challenge(client, name="Same").json()["id"]
+    response = client.patch(f"/challenges/{challenge_id}", json={})
+    assert response.status_code == 200
+    assert response.json()["name"] == "Same"

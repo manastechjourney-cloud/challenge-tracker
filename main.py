@@ -178,3 +178,38 @@ def delete_checkin(
     checkin = get_checkin_or_404(db, challenge_id, checkin_id)
     db.delete(checkin)
     db.commit()
+
+
+@app.patch("/challenges/{challenge_id}", response_model=schemas.ChallengeRead)
+def update_challenge(
+    challenge_id: int,
+    update: schemas.ChallengeUpdate,
+    db: Session = Depends(get_db),
+):
+    challenge = db.get(models.Challenge, challenge_id)
+    if challenge is None:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+
+    changes = update.model_dump(exclude_unset=True)
+    if any(value is None for value in changes.values()):
+        raise HTTPException(
+            status_code=422,
+            detail="Fields cannot be null. Leave a field out to keep it unchanged.",
+        )
+
+    new_start = changes.get("start_date", challenge.start_date)
+    new_duration = changes.get("duration_days", challenge.duration_days)
+    new_last_day = new_start + datetime.timedelta(days=new_duration - 1)
+    for checkin in challenge.checkins:
+        if checkin.date < new_start or checkin.date > new_last_day:
+            raise HTTPException(
+                status_code=400,
+                detail="Existing check-ins would fall outside the new dates. "
+                "Remove them first.",
+            )
+
+    for field, value in changes.items():
+        setattr(challenge, field, value)
+    db.commit()
+    db.refresh(challenge)
+    return challenge    

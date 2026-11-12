@@ -17,6 +17,12 @@ class ChallengeRead(ChallengeCreate):
 
     id: int
 
+class ChallengeUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    description: str | None = None
+    duration_days: int | None = Field(default=None, gt=0, le=3650)
+    start_date: datetime.date | None = None
+    strict_mode: bool | None = None
 
 class CheckInUpdate(BaseModel):
     status: Literal["done", "slipped"]
