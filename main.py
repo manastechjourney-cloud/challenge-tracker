@@ -3,7 +3,8 @@ import datetime
 from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session, selectinload
 from progress import calculate_progress
 from challenge_templates import TEMPLATES
 from fastapi.responses import FileResponse
@@ -218,3 +219,48 @@ def update_challenge(
 @app.get("/templates", response_model=list[schemas.TemplateRead])
 def list_templates():
     return TEMPLATES
+
+@app.get("/stats", response_model=schemas.StatsRead)
+def get_stats(db: Session = Depends(get_db)):
+    today = datetime.date.today()
+
+    rows = db.execute(
+        select(models.CheckIn.status, func.count()).group_by(models.CheckIn.status)
+    ).all()
+    counts = dict(rows)
+    days_done = counts.get("done", 0)
+    days_slipped = counts.get("slipped", 0)
+
+    challenges = db.scalars(
+        select(models.Challenge).options(selectinload(models.Challenge.checkins))
+    ).all()
+
+    active = 0
+    best_streak = 0
+    for challenge in challenges:
+        last_day = challenge.start_date + datetime.timedelta(
+            days=challenge.duration_days - 1
+        )
+        if not (challenge.start_date <= today <= last_day):
+            continue
+        active += 1
+        progress = calculate_progress(
+            start_date=challenge.start_date,
+            duration_days=challenge.duration_days,
+            strict_mode=challenge.strict_mode,
+            statuses={c.date: c.status for c in challenge.checkins},
+            today=today,
+        )
+        best_streak = max(best_streak, progress.current_streak)
+
+    total_checkins = days_done + days_slipped
+    slip_rate = round(days_slipped / total_checkins * 100, 1) if total_checkins else 0.0
+
+    return schemas.StatsRead(
+        challenges_total=len(challenges),
+        challenges_active=active,
+        days_done=days_done,
+        days_slipped=days_slipped,
+        slip_rate_percent=slip_rate,
+        best_current_streak=best_streak,
+    )

@@ -12,6 +12,7 @@ async function loadChallenges() {
       challenges.map((challenge) => getJson(`/challenges/${challenge.id}/progress`))
     );
     renderChallenges(challenges, progresses);
+    loadStats();
   } catch (error) {
     messageElement.textContent = "Could not load challenges: " + error.message;
   }
@@ -174,6 +175,17 @@ async function startFromTemplate(template, card) {
     showToast("Could not start: " + error.message, "error");
   } finally {
     card.disabled = false;
+  }
+}
+async function loadStats() {
+  try {
+    const stats = await getJson("/stats");
+    document.getElementById("ov-active").textContent = stats.challenges_active;
+    document.getElementById("ov-done").textContent = stats.days_done;
+    document.getElementById("ov-slip").textContent = `${stats.slip_rate_percent}%`;
+    document.getElementById("ov-streak").textContent = stats.best_current_streak;
+  } catch (error) {
+    console.error("Could not load the overview:", error);
   }
 }
 startDateInput.value = todayString();

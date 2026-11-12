@@ -296,3 +296,50 @@ def test_every_template_can_create_a_challenge(client, template):
         },
     )
     assert response.status_code == 201
+
+def test_stats_with_no_data_is_all_zeros(client):
+    body = client.get("/stats").json()
+    assert body == {
+        "challenges_total": 0,
+        "challenges_active": 0,
+        "days_done": 0,
+        "days_slipped": 0,
+        "slip_rate_percent": 0.0,
+        "best_current_streak": 0,
+    }
+
+
+def test_stats_counts_checkins_and_slip_rate(client):
+    first = make_challenge(client, name="First").json()["id"]
+    second = make_challenge(client, name="Second").json()["id"]
+    add_checkin(client, first, TODAY - 2 * ONE_DAY)
+    add_checkin(client, first, TODAY - ONE_DAY)
+    add_checkin(client, first, TODAY, status="slipped")
+    add_checkin(client, second, TODAY - ONE_DAY)
+    body = client.get("/stats").json()
+    assert body["challenges_total"] == 2
+    assert body["days_done"] == 3
+    assert body["days_slipped"] == 1
+    assert body["slip_rate_percent"] == 25.0
+
+
+def test_stats_active_challenges_excludes_finished_ones(client):
+    make_challenge(client, name="Running")
+    make_challenge(
+        client,
+        name="Finished",
+        duration_days=5,
+        start_date=(TODAY - 20 * ONE_DAY).isoformat(),
+    )
+    body = client.get("/stats").json()
+    assert body["challenges_total"] == 2
+    assert body["challenges_active"] == 1
+
+
+def test_stats_best_current_streak_picks_the_longest(client):
+    first = make_challenge(client, name="First").json()["id"]
+    second = make_challenge(client, name="Second").json()["id"]
+    add_checkin(client, first, TODAY - 2 * ONE_DAY)
+    add_checkin(client, first, TODAY - ONE_DAY)
+    add_checkin(client, second, TODAY - ONE_DAY)
+    assert client.get("/stats").json()["best_current_streak"] == 2    

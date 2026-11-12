@@ -59,3 +59,11 @@ class TemplateRead(BaseModel):
     duration_days: int
     strict_mode: bool
     icon: str
+
+class StatsRead(BaseModel):
+    challenges_total: int
+    challenges_active: int
+    days_done: int
+    days_slipped: int
+    slip_rate_percent: float
+    best_current_streak: int    
