@@ -219,3 +219,37 @@ button.ghost:hover:not(:disabled) {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Edit dialog */
+#edit-button {
+  margin-top: 18px;
+}
+
+dialog {
+  width: min(92vw, 520px);
+  padding: 0;
+  color: var(--text);
+  background: rgba(16, 22, 42, 0.96);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+}
+
+dialog[open] {
+  animation: toast-in 0.25s ease;
+}
+
+dialog::backdrop {
+  background: rgba(3, 6, 18, 0.6);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+dialog form {
+  padding: 26px;
+}
+
+.form-error {
+  margin: 0;
+  color: var(--red);
+}

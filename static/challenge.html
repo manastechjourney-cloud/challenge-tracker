@@ -14,6 +14,7 @@
       <a class="back-link" href="/">&larr; All challenges</a>
       <h1 id="challenge-name" class="page-title">Loading...</h1>
       <p id="challenge-info" class="subtitle"></p>
+      <button type="button" id="edit-button" class="ghost">Edit</button>
     </div>
   </header>
 
@@ -71,6 +72,37 @@
       <ul id="history-list"></ul>
     </section>
   </main>
+
+  <dialog id="edit-dialog">
+    <form id="edit-form">
+      <h2>Edit challenge</h2>
+      <label>
+        Name
+        <input type="text" id="edit-name" required maxlength="100">
+      </label>
+      <label>
+        Description
+        <textarea id="edit-description" rows="2"></textarea>
+      </label>
+      <label>
+        Duration (days)
+        <input type="number" id="edit-duration" min="1" max="3650" required>
+      </label>
+      <label>
+        Start date
+        <input type="date" id="edit-start" required>
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" id="edit-strict">
+        Strict mode (a slip resets the streak)
+      </label>
+      <p id="edit-message" class="form-error"></p>
+      <div class="buttons">
+        <button type="submit">Save changes</button>
+        <button type="button" class="ghost" id="edit-cancel">Cancel</button>
+      </div>
+    </form>
+  </dialog>
 
   <script src="/static/common.js"></script>
   <script src="/static/challenge.js"></script>

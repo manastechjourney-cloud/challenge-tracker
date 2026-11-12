@@ -44,15 +44,12 @@ function setupDatePicker(challenge) {
   dateInput.min = challenge.start_date;
   dateInput.max = today < lastDay ? today : lastDay;
 
-  if (!dateInitialized) {
-    if (today < challenge.start_date) {
-      dateInput.value = challenge.start_date;
-    } else {
-      dateInput.value = dateInput.max;
-    }
+  const outOfRange = dateInput.value < dateInput.min || dateInput.value > dateInput.max;
+  if (!dateInitialized || outOfRange) {
+    dateInput.value = today < challenge.start_date ? challenge.start_date : dateInput.max;
     dateInitialized = true;
   }
-}
+} 
 
 function setFormEnabled(enabled) {
   doneButton.disabled = !enabled;
@@ -257,7 +254,65 @@ async function undoCheckin(checkin) {
     showToast("Could not undo: " + error.message, "error");
   }
 }
+const editDialog = byId("edit-dialog");
+const editForm = byId("edit-form");
+const editMessage = byId("edit-message");
 
+function openEditDialog() {
+  if (!currentChallenge) {
+    return;
+  }
+  byId("edit-name").value = currentChallenge.name;
+  byId("edit-description").value = currentChallenge.description;
+  byId("edit-duration").value = currentChallenge.duration_days;
+  byId("edit-start").value = currentChallenge.start_date;
+  byId("edit-strict").checked = currentChallenge.strict_mode;
+  editMessage.textContent = "";
+  editDialog.showModal();
+}
+
+async function saveEdit(event) {
+  event.preventDefault();
+
+  const edited = {
+    name: byId("edit-name").value.trim(),
+    description: byId("edit-description").value.trim(),
+    duration_days: Number(byId("edit-duration").value),
+    start_date: byId("edit-start").value,
+    strict_mode: byId("edit-strict").checked,
+  };
+
+  const changes = {};
+  for (const [field, value] of Object.entries(edited)) {
+    if (value !== currentChallenge[field]) {
+      changes[field] = value;
+    }
+  }
+
+  if (Object.keys(changes).length === 0) {
+    editDialog.close();
+    showToast("Nothing to change.");
+    return;
+  }
+
+  try {
+    await sendJson("PATCH", `/challenges/${challengeId}`, changes);
+    editDialog.close();
+    showToast("Challenge updated.", "success");
+    await loadPage();
+  } catch (error) {
+    editMessage.textContent = error.message;
+  }
+}
+
+byId("edit-button").addEventListener("click", openEditDialog);
+byId("edit-cancel").addEventListener("click", () => editDialog.close());
+editForm.addEventListener("submit", saveEdit);
+editDialog.addEventListener("click", (event) => {
+  if (event.target === editDialog) {
+    editDialog.close();
+  }
+});
 dateInput.addEventListener("change", updateCheckinForm);
 doneButton.addEventListener("click", () => submitCheckin("done"));
 slippedButton.addEventListener("click", () => submitCheckin("slipped"));
