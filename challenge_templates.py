@@ -1,0 +1,51 @@
+TEMPLATES = [
+    {
+        "name": "30 days no sugar",
+        "description": "No added sugar for a month.",
+        "duration_days": 30,
+        "strict_mode": True,
+        "icon": "🍬",
+    },
+    {
+        "name": "100 days no oil",
+        "description": "Cook and eat without added oil.",
+        "duration_days": 100,
+        "strict_mode": True,
+        "icon": "🥗",
+    },
+    {
+        "name": "7 days no social media",
+        "description": "A week away from the feeds.",
+        "duration_days": 7,
+        "strict_mode": True,
+        "icon": "📵",
+    },
+    {
+        "name": "21 days of meditation",
+        "description": "Ten quiet minutes every day.",
+        "duration_days": 21,
+        "strict_mode": False,
+        "icon": "🧘",
+    },
+    {
+        "name": "30 days of exercise",
+        "description": "Move your body every day.",
+        "duration_days": 30,
+        "strict_mode": False,
+        "icon": "🏃",
+    },
+    {
+        "name": "30 days of reading",
+        "description": "Read at least 20 pages a day.",
+        "duration_days": 30,
+        "strict_mode": False,
+        "icon": "📚",
+    },
+    {
+        "name": "21 days of early rising",
+        "description": "Wake up on time, every morning.",
+        "duration_days": 21,
+        "strict_mode": True,
+        "icon": "🌅",
+    },
+]

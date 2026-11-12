@@ -1,5 +1,9 @@
 import datetime
 
+import pytest
+
+from challenge_templates import TEMPLATES
+
 TODAY = datetime.date.today()
 ONE_DAY = datetime.timedelta(days=1)
 
@@ -264,3 +268,31 @@ def test_patch_with_empty_body_changes_nothing(client):
     response = client.patch(f"/challenges/{challenge_id}", json={})
     assert response.status_code == 200
     assert response.json()["name"] == "Same"
+
+
+def test_list_templates(client):
+    response = client.get("/templates")
+    assert response.status_code == 200
+    names = [template["name"] for template in response.json()]
+    assert "30 days no sugar" in names
+    assert len(names) == len(TEMPLATES)
+
+
+def test_template_names_are_unique():
+    names = [template["name"] for template in TEMPLATES]
+    assert len(names) == len(set(names))
+
+
+@pytest.mark.parametrize("template", TEMPLATES, ids=lambda t: t["name"])
+def test_every_template_can_create_a_challenge(client, template):
+    response = client.post(
+        "/challenges",
+        json={
+            "name": template["name"],
+            "description": template["description"],
+            "duration_days": template["duration_days"],
+            "start_date": TODAY.isoformat(),
+            "strict_mode": template["strict_mode"],
+        },
+    )
+    assert response.status_code == 201

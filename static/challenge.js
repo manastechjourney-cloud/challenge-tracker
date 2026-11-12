@@ -198,6 +198,7 @@ async function loadPage() {
     setupDatePicker(challenge);
     updateCheckinForm();
     renderHistory(checkins);
+    renderCalendar();
     pageMessage.textContent = "";
   } catch (error) {
     pageMessage.textContent = "Could not load this challenge: " + error.message;
@@ -253,6 +254,78 @@ async function undoCheckin(checkin) {
   } catch (error) {
     showToast("Could not undo: " + error.message, "error");
   }
+}
+function weekdayIndex(dateString) {
+  const [year, month, day] = dateString.split("-").map(Number);
+  return (new Date(year, month - 1, day).getDay() + 6) % 7;
+}
+
+function dayState(date, checkin, today) {
+  if (checkin) {
+    return checkin.status;
+  }
+  if (date === today) {
+    return "today";
+  }
+  return date < today ? "missed" : "future";
+}
+
+function renderCalendar() {
+  const grid = byId("calendar-grid");
+  grid.replaceChildren();
+  if (!currentChallenge) {
+    return;
+  }
+
+  const today = todayString();
+  const checkinByDate = new Map(currentCheckins.map((checkin) => [checkin.date, checkin]));
+  const start = currentChallenge.start_date;
+
+  for (let i = 0; i < weekdayIndex(start); i++) {
+    const spacer = document.createElement("span");
+    spacer.className = "day empty";
+    grid.appendChild(spacer);
+  }
+
+  let todayCell = null;
+  for (let i = 0; i < currentChallenge.duration_days; i++) {
+    const date = addDays(start, i);
+    const checkin = checkinByDate.get(date);
+    const state = dayState(date, checkin, today);
+
+    const cell = document.createElement("button");
+    cell.type = "button";
+    cell.className = `day ${state}`;
+    const note = checkin && checkin.note ? ` · ${checkin.note}` : "";
+    cell.title = `Day ${i + 1} · ${date} · ${state}${note}`;
+    cell.setAttribute("aria-label", `${date}: ${state}`);
+    cell.addEventListener("click", () => pickCalendarDay(date, checkin, state));
+
+    if (date === today) {
+      todayCell = cell;
+    }
+    grid.appendChild(cell);
+  }
+
+  if (todayCell) {
+    const scroller = grid.parentElement;
+    scroller.scrollLeft = todayCell.offsetLeft - scroller.clientWidth / 2;
+  }
+}
+
+function pickCalendarDay(date, checkin, state) {
+  if (checkin) {
+    const note = checkin.note ? ` · ${checkin.note}` : "";
+    showToast(`${date}: ${checkin.status}${note}`);
+    return;
+  }
+  if (state === "future") {
+    showToast(`${date} hasn't happened yet.`);
+    return;
+  }
+  dateInput.value = date;
+  updateCheckinForm();
+  byId("checkin-section").scrollIntoView({ behavior: "smooth" });
 }
 const editDialog = byId("edit-dialog");
 const editForm = byId("edit-form");

@@ -121,5 +121,61 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
+const templateGrid = document.getElementById("template-grid");
+
+async function loadTemplates() {
+  try {
+    const templates = await getJson("/templates");
+    renderTemplates(templates);
+  } catch (error) {
+    templateGrid.textContent = "Could not load templates.";
+  }
+}
+
+function renderTemplates(templates) {
+  templateGrid.replaceChildren();
+
+  for (const template of templates) {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "template-card";
+
+    const icon = document.createElement("span");
+    icon.className = "template-icon";
+    icon.textContent = template.icon;
+
+    const name = document.createElement("strong");
+    name.textContent = template.name;
+
+    const mode = template.strict_mode ? "strict" : "relaxed";
+    const meta = document.createElement("span");
+    meta.className = "meta";
+    meta.textContent = `${template.duration_days} days · ${mode}`;
+
+    card.append(icon, name, meta);
+    card.addEventListener("click", () => startFromTemplate(template, card));
+    templateGrid.appendChild(card);
+  }
+}
+
+async function startFromTemplate(template, card) {
+  card.disabled = true;
+  try {
+    await sendJson("POST", "/challenges", {
+      name: template.name,
+      description: template.description,
+      duration_days: template.duration_days,
+      start_date: todayString(),
+      strict_mode: template.strict_mode,
+    });
+    showToast(`Started "${template.name}" today.`, "success");
+    await loadChallenges();
+  } catch (error) {
+    showToast("Could not start: " + error.message, "error");
+  } finally {
+    card.disabled = false;
+  }
+}
 startDateInput.value = todayString();
+loadTemplates();
 loadChallenges();

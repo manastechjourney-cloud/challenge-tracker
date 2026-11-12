@@ -52,3 +52,10 @@ class ProgressRead(BaseModel):
     days_left: int
     completion_percent: float
     current_streak: int
+
+class TemplateRead(BaseModel):
+    name: str
+    description: str
+    duration_days: int
+    strict_mode: bool
+    icon: str

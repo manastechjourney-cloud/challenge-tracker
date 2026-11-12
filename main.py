@@ -5,6 +5,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from progress import calculate_progress
+from challenge_templates import TEMPLATES
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 import models
@@ -213,3 +214,7 @@ def update_challenge(
     db.commit()
     db.refresh(challenge)
     return challenge    
+
+@app.get("/templates", response_model=list[schemas.TemplateRead])
+def list_templates():
+    return TEMPLATES
