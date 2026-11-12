@@ -79,9 +79,10 @@ async function deleteChallenge(challenge) {
     if (!response.ok) {
       throw new Error("Server replied " + response.status);
     }
+    showToast("Challenge deleted.", "success");
     await loadChallenges();
   } catch (error) {
-    messageElement.textContent = "Could not delete: " + error.message;
+    showToast("Could not delete: " + error.message, "error");
   }
 }
 
@@ -111,10 +112,10 @@ form.addEventListener("submit", async (event) => {
     }
     form.reset();
     startDateInput.value = todayString();
-    formMessage.textContent = "Challenge created!";
+    showToast("Challenge created.", "success");
     await loadChallenges();
   } catch (error) {
-    formMessage.textContent = "Could not create: " + error.message;
+    showToast("Could not create: " + error.message, "error");
   } finally {
     submitButton.disabled = false;
   }

@@ -4,11 +4,16 @@ const RING_LENGTH = 326.73;
 const byId = (id) => document.getElementById(id);
 const pageMessage = byId("page-message");
 const noteInput = byId("note");
+const dateInput = byId("checkin-date");
 const doneButton = byId("done-button");
 const slippedButton = byId("slipped-button");
 const ringFill = byId("ring-fill");
 const flame = byId("flame");
 const historyList = byId("history-list");
+
+let currentChallenge = null;
+let currentCheckins = [];
+let dateInitialized = false;
 
 function renderChallenge(challenge) {
   byId("challenge-name").textContent = challenge.name;
@@ -33,17 +38,56 @@ function renderProgress(progress) {
   flame.classList.toggle("cold", progress.current_streak === 0);
 }
 
-function renderToday(checkins) {
-  const todays = checkins.find((checkin) => checkin.date === todayString());
-  const hasCheckedIn = todays !== undefined;
+function setupDatePicker(challenge) {
+  const today = todayString();
+  const lastDay = addDays(challenge.start_date, challenge.duration_days - 1);
+  dateInput.min = challenge.start_date;
+  dateInput.max = today < lastDay ? today : lastDay;
 
-  doneButton.disabled = hasCheckedIn;
-  slippedButton.disabled = hasCheckedIn;
-  noteInput.disabled = hasCheckedIn;
+  if (!dateInitialized) {
+    if (today < challenge.start_date) {
+      dateInput.value = challenge.start_date;
+    } else {
+      dateInput.value = dateInput.max;
+    }
+    dateInitialized = true;
+  }
+}
 
-  byId("today-status").textContent = hasCheckedIn
-    ? `You already checked in today: ${todays.status}.`
-    : "You haven't checked in today yet.";
+function setFormEnabled(enabled) {
+  doneButton.disabled = !enabled;
+  slippedButton.disabled = !enabled;
+  noteInput.disabled = !enabled;
+}
+
+function updateCheckinForm() {
+  if (!currentChallenge) {
+    return;
+  }
+  const today = todayString();
+  const status = byId("today-status");
+
+  if (today < currentChallenge.start_date) {
+    dateInput.disabled = true;
+    setFormEnabled(false);
+    status.textContent = `This challenge starts on ${currentChallenge.start_date}.`;
+    return;
+  }
+  dateInput.disabled = false;
+
+  const chosen = dateInput.value;
+  if (!chosen) {
+    setFormEnabled(false);
+    status.textContent = "Pick a day to check in for.";
+    return;
+  }
+
+  const existing = currentCheckins.find((checkin) => checkin.date === chosen);
+  const when = chosen === today ? "today" : "on " + chosen;
+  setFormEnabled(existing === undefined);
+  status.textContent = existing
+    ? `You already checked in ${when}: ${existing.status}.`
+    : `You haven't checked in ${when} yet.`;
 }
 
 function renderHistory(checkins) {
@@ -69,7 +113,25 @@ function renderHistory(checkins) {
 
     const info = document.createElement("div");
     info.append(date, details);
-    item.appendChild(info);
+
+    const otherStatus = checkin.status === "done" ? "slipped" : "done";
+    const switchButton = document.createElement("button");
+    switchButton.type = "button";
+    switchButton.className = "ghost";
+    switchButton.textContent = `Mark ${otherStatus}`;
+    switchButton.addEventListener("click", () => changeStatus(checkin, otherStatus));
+
+    const undoButton = document.createElement("button");
+    undoButton.type = "button";
+    undoButton.className = "danger";
+    undoButton.textContent = "Undo";
+    undoButton.addEventListener("click", () => undoCheckin(checkin));
+
+    const actions = document.createElement("div");
+    actions.className = "row-actions";
+    actions.append(switchButton, undoButton);
+
+    item.append(info, actions);
     historyList.appendChild(item);
   }
 }
@@ -132,9 +194,12 @@ async function loadPage() {
       getJson(`/challenges/${challengeId}/progress`),
       getJson(`/challenges/${challengeId}/checkins`),
     ]);
+    currentChallenge = challenge;
+    currentCheckins = checkins;
     renderChallenge(challenge);
     renderProgress(progress);
-    renderToday(checkins);
+    setupDatePicker(challenge);
+    updateCheckinForm();
     renderHistory(checkins);
     pageMessage.textContent = "";
   } catch (error) {
@@ -143,34 +208,57 @@ async function loadPage() {
 }
 
 async function submitCheckin(status) {
-  pageMessage.textContent = "";
-  doneButton.disabled = true;
-  slippedButton.disabled = true;
-
+  setFormEnabled(false);
   const note = noteInput.value.trim();
 
   try {
-    const response = await fetch(`/challenges/${challengeId}/checkins`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: status, note: note || null }),
+    await sendJson("POST", `/challenges/${challengeId}/checkins`, {
+      status: status,
+      date: dateInput.value,
+      note: note || null,
     });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(describeError(error.detail));
-    }
     noteInput.value = "";
+    showToast(
+      status === "done" ? "Nice work! Marked done." : "Slip logged. Tomorrow is a new day.",
+      "success"
+    );
     if (status === "done") {
       launchConfetti();
     }
     await loadPage();
   } catch (error) {
-    pageMessage.textContent = "Could not save check-in: " + error.message;
-    doneButton.disabled = false;
-    slippedButton.disabled = false;
+    showToast("Could not save check-in: " + error.message, "error");
+    updateCheckinForm();
   }
 }
 
+async function changeStatus(checkin, status) {
+  try {
+    await sendJson("PUT", `/challenges/${challengeId}/checkins/${checkin.id}`, {
+      status: status,
+      note: checkin.note,
+    });
+    showToast(`Marked ${checkin.date} as ${status}.`, "success");
+    await loadPage();
+  } catch (error) {
+    showToast("Could not update: " + error.message, "error");
+  }
+}
+
+async function undoCheckin(checkin) {
+  if (!confirm(`Remove the check-in for ${checkin.date}?`)) {
+    return;
+  }
+  try {
+    await sendJson("DELETE", `/challenges/${challengeId}/checkins/${checkin.id}`);
+    showToast(`Removed the check-in for ${checkin.date}.`, "success");
+    await loadPage();
+  } catch (error) {
+    showToast("Could not undo: " + error.message, "error");
+  }
+}
+
+dateInput.addEventListener("change", updateCheckinForm);
 doneButton.addEventListener("click", () => submitCheckin("done"));
 slippedButton.addEventListener("click", () => submitCheckin("slipped"));
 
